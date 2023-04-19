@@ -1,4 +1,4 @@
-## Timbrell et al. (2022) Comparison between climate model and proxy reconstructions for Late Pleistocene climate
+## Timbrell et al. (2023) Comparison between climate model and proxy reconstructions for Late Pleistocene climate
 
 ################# PREPARATION  ################
 
@@ -7,10 +7,12 @@
 devtools::install_github("EvolEcolGroup/pastclim",ref="ds_files") #  CHECK WITH ANDREA WHICH ONE TO INCLUDE IN FINAL SCRIPT
 install.packages('terra', repos='https://rspatial.r-universe.dev')
 remotes::install_github("ericpante/marmap")
+install.packages("git2r")
 
 ##  Load packages 
 library(terra) 
 library(pastclim)
+library(git2r)
 
 ##  Set working directory 
 setwd("D:/Dropbox/Timbrell et al 2023")
@@ -122,24 +124,25 @@ plot(bioclim_downscaled[[1]], main = time(bioclim_downscaled[[1]]))
 ################# SAVE DATASETS ################
 
 #setwd() # SET TO HARD DRIVE 
+terra::writeCDF(bioclim_downscaled,paste0(tempdir(),"/EA_bioclim_downscaled.nc"), overwrite=TRUE)
 
-terra::writeCDF(bioclim_downscaled[[1]], "bio01_downscaled.nc", varname = "bio01", overwrite = TRUE) # mean annual temp
-terra::writeCDF(bioclim_downscaled[[2]], "bio04_downscaled.nc", varname = "bio04", overwrite = TRUE) # temp seasonality 
-terra::writeCDF(bioclim_downscaled[[3]], "bio05_downscaled.nc", varname = "bio05", overwrite = TRUE) # min annual temp
-terra::writeCDF(bioclim_downscaled[[4]], "bio06_downscaled.nc", varname = "bio06", overwrite = TRUE) # max annual temp
-terra::writeCDF(bioclim_downscaled[[5]], "bio07_downscaled.nc", varname = "bio07", overwrite = TRUE) # temp annual range
-terra::writeCDF(bioclim_downscaled[[6]], "bio08_downscaled.nc", varname = "bio08", overwrite = TRUE) # mean temp of wettest quarter
-terra::writeCDF(bioclim_downscaled[[7]], "bio09_downscaled.nc", varname = "bio09", overwrite = TRUE) # mean temp of driest quarter
-terra::writeCDF(bioclim_downscaled[[8]], "bio10_downscaled.nc", varname = "bio10", overwrite = TRUE) # mean temp of warmest quarter
-terra::writeCDF(bioclim_downscaled[[9]], "bio11_downscaled.nc", varname = "bio11", overwrite = TRUE) # mean temp of coldest quarter
-terra::writeCDF(bioclim_downscaled[[10]], "bio12_downscaled.nc", varname = "bio12", overwrite = TRUE) # total annual precip
-terra::writeCDF(bioclim_downscaled[[11]], "bio13_downscaled.nc", varname = "bio13", overwrite = TRUE) # precip of wettest month
-terra::writeCDF(bioclim_downscaled[[12]], "bio14_downscaled.nc", varname = "bio14", overwrite = TRUE) # precip of driest month
-terra::writeCDF(bioclim_downscaled[[13]], "bio15_downscaled.nc", varname = "bio15", overwrite = TRUE) # precip seasonality
-terra::writeCDF(bioclim_downscaled[[14]], "bio16_downscaled.nc", varname = "bio16", overwrite = TRUE) # precip of wettest quarter
-terra::writeCDF(bioclim_downscaled[[15]], "bio17_downscaled.nc", varname = "bio17", overwrite = TRUE) # precip of driest quarter
-terra::writeCDF(bioclim_downscaled[[16]], "bio18_downscaled.nc", varname = "bio18", overwrite = TRUE) # precip of warmest quarter
-terra::writeCDF(bioclim_downscaled[[17]], "bio19_downscaled.nc", varname = "bio19", overwrite = TRUE) #  precip of coldest quarter
+#terra::writeCDF(bioclim_downscaled[[1]], "bio01_downscaled.nc", varname = "bio01", overwrite = TRUE) # mean annual temp
+#terra::writeCDF(bioclim_downscaled[[2]], "bio04_downscaled.nc", varname = "bio04", overwrite = TRUE) # temp seasonality 
+#terra::writeCDF(bioclim_downscaled[[3]], "bio05_downscaled.nc", varname = "bio05", overwrite = TRUE) # min annual temp
+#terra::writeCDF(bioclim_downscaled[[4]], "bio06_downscaled.nc", varname = "bio06", overwrite = TRUE) # max annual temp
+#terra::writeCDF(bioclim_downscaled[[5]], "bio07_downscaled.nc", varname = "bio07", overwrite = TRUE) # temp annual range
+#terra::writeCDF(bioclim_downscaled[[6]], "bio08_downscaled.nc", varname = "bio08", overwrite = TRUE) # mean temp of wettest quarter
+#terra::writeCDF(bioclim_downscaled[[7]], "bio09_downscaled.nc", varname = "bio09", overwrite = TRUE) # mean temp of driest quarter
+#terra::writeCDF(bioclim_downscaled[[8]], "bio10_downscaled.nc", varname = "bio10", overwrite = TRUE) # mean temp of warmest quarter
+#terra::writeCDF(bioclim_downscaled[[9]], "bio11_downscaled.nc", varname = "bio11", overwrite = TRUE) # mean temp of coldest quarter
+#terra::writeCDF(bioclim_downscaled[[10]], "bio12_downscaled.nc", varname = "bio12", overwrite = TRUE) # total annual precip
+#terra::writeCDF(bioclim_downscaled[[11]], "bio13_downscaled.nc", varname = "bio13", overwrite = TRUE) # precip of wettest month
+#terra::writeCDF(bioclim_downscaled[[12]], "bio14_downscaled.nc", varname = "bio14", overwrite = TRUE) # precip of driest month
+#terra::writeCDF(bioclim_downscaled[[13]], "bio15_downscaled.nc", varname = "bio15", overwrite = TRUE) # precip seasonality
+#terra::writeCDF(bioclim_downscaled[[14]], "bio16_downscaled.nc", varname = "bio16", overwrite = TRUE) # precip of wettest quarter
+#terra::writeCDF(bioclim_downscaled[[15]], "bio17_downscaled.nc", varname = "bio17", overwrite = TRUE) # precip of driest quarter
+#terra::writeCDF(bioclim_downscaled[[16]], "bio18_downscaled.nc", varname = "bio18", overwrite = TRUE) # precip of warmest quarter
+#terra::writeCDF(bioclim_downscaled[[17]], "bio19_downscaled.nc", varname = "bio19", overwrite = TRUE) #  precip of coldest quarter
 
 ################# RESET TIME UNITS ################
 
@@ -192,26 +195,36 @@ coords <- data.frame(longitude = proxy$Longitude, latitude = proxy$Latitude)
 time_steps <- unique(sort(proxy$RoundedAge, decreasing = TRUE))
 time_steps <- time_steps[which(time_steps %in% get_time_steps(dataset = "Beyer2020"))] # Check if timeslices are available
 
-raw_time_series_temp <-location_series(x=coords,time_bp=time_steps, # raw data
+
+downscaled_data <- location_series(x = coords, time_bp = time_steps,
+                                   bio_variables =c("bio01","bio12"),
+                                   dataset = "Beyer2020")
+
+raw_data <- location_series(x=coords,time_bp=time_steps, # raw data
+                            bio_variables=c("bio01"),
+                            dataset="Beyer2020")
+
+  
+#  raw_time_series_temp <-location_series(x=coords,time_bp=time_steps, # raw data
                                    bio_variables=c("bio01"),
                                    dataset="Beyer2020")
 
-downscaled_time_series_temp <- location_series(x=coords, time_bp=time_steps, # downscaled data
+#downscaled_time_series_temp <- location_series(x=coords, time_bp=time_steps, # downscaled data
                                            bio_variables=c("bio01"),
                                            dataset="custom", path_to_nc = "bio01_downscaled.nc")
 
-raw_time_series_prec <-location_series(x=coords,time_bp=time_steps, # raw data
+#raw_time_series_prec <-location_series(x=coords,time_bp=time_steps, # raw data
                                         bio_variables=c("bio12"),
                                         dataset="Beyer2020")
 
-downscaled_time_series_prec <- location_series(x=coords, time_bp=time_steps, # downscaled data
+#downscaled_time_series_prec <- location_series(x=coords, time_bp=time_steps, # downscaled data
                                                 bio_variables=c("bio12"),
                                                 dataset="custom", path_to_nc = "bio12_downscaled.nc")
 
 
 a <- ggplot() + 
-  geom_line(data = raw_time_series_temp, aes(x= time, y = bio01, colour = "blue")) + 
-  geom_line(data = downscaled_time_series_temp, aes(x = time, y = bio01, colour = "gray40")) +
+  geom_line(data = raw_data$bio01, aes(x= time, y = bio01, colour = "blue")) + 
+  geom_line(data = downscaled_data$bio01, aes(x = time, y = bio01, colour = "gray40")) +
   geom_line(data = proxy, aes(x=Age*-1000, y = MAAT_WAPLS , colour = "red"))+
   geom_line(data = proxy, aes(x=Age*-1000, y = MAAT_MAT , colour = "darkorange"))+
   geom_line(data = proxy, aes(x=Age*-1000, y = MAAT_Annual, colour = "brown"))+
@@ -224,20 +237,20 @@ a <- ggplot() +
   theme(legend.position = "none")
 a  
 b <-  ggplot() + 
-  geom_line(data = raw_time_series_prec, aes(x= time, y = bio12, colour = "blue")) + 
-  geom_line(data = downscaled_time_series_prec, aes(x = time, y = bio12, colour = "gray40")) +
+  geom_line(data = raw_data$bio12, aes(x= time, y = bio12, colour = "blue")) + 
+  geom_line(data = downscaled_data$bio12, aes(x = time, y = bio12, colour = "gray40")) +
   geom_line(data = proxy, aes(x=Age*-1000, y = PAT_WAPLS, colour = "red"))+
   geom_line(data = proxy, aes(x=Age*-1000, y = PAT_MAT, colour = "darkorange"))+
   geom_line(data = proxy, aes(x=Age*-1000, y = PAT_Annual, colour = "brown"))+
   xlab("year calKa BP") + 
   ylab("Precipitation (mm)") +
-  #ggtitle("Luanhaizi LH2")+
   labs(color = "") + 
   scale_color_manual(breaks = c("blue", "gray40", "red", "darkorange", "brown"), values = c("blue", "gray40", "red", "darkorange", "brown"), labels = c("Raw model data", "Downscaled model data", "Proxy data - WA.PLS method", "Proxy data - MAT method", "Proxy data - Annual"))+
   theme_bw()+
   theme(legend.position = "none")
 
 plot_list[[i]] <- list(a, b)
+
 ## Calculate bias and RMSE between time series 
 
 Time <- raw_time_series_temp$time
