@@ -15,7 +15,7 @@ library(pastclim)
 library(git2r)
 
 ##  Set working directory 
-setwd("D:/Dropbox/Timbrell et al 2023")
+setwd("/Users/lucytimbrell/Documents/GitHub/downscaling_climatemodels/downscaling_climatemodels")
 
 ##  Set spatial extent 
 sea_ext<- terra::ext(-180, 180, 0, 90) # Northern hempisphere
@@ -80,17 +80,77 @@ plot(high_res_mask[[1:12]], col = "blue") # Plot to check
 ext(high_res_mask)==ext(tavg_obs_hres_all) # Check same extent
 
 ## Delta-downscaling for all months 
-tavg_downscaled_list<-list()
-for (i in 1:12){
-  delta_rast<-pastclim:::delta_compute(x=tavg_series[[i]], ref_time = 0, 
-                                       obs = tavg_obs_hres_all[[i]])
-  tavg_downscaled_list[[i]] <- pastclim:::delta_downscale (x = tavg_series[[i]], 
-                                                           delta_rast = delta_rast,
-                                                           x_landmask_high = high_res_mask)
-  }
-tavg_downscaled <- terra::sds(tavg_downscaled_list)
+##tavg_downscaled_list<-list()
+##for (i in 1:12){ 
+## delta_rast<-pastclim:::delta_compute(x=tavg_series[[i]], ref_time = 0, 
+##    obs = tavg_obs_hres_all[[i]])
+## tavg_downscaled_list[[i]] <- pastclim:::delta_downscale (x = tavg_series[[i]], 
+##                                                           delta_rast = delta_rast,
+##                                                          x_landmask_high = high_res_mask)
+##  }
+##tavg_downscaled <- terra::sds(tavg_downscaled_list)
 
-tavg_downscaled # inspect
+##tavg_downscaled # inspect
+
+for (i in 1:12){
+  delta_rast<-pastclim:::delta_compute(x=tavg_series[[i]], ref_time = 0,
+                                       obs = tavg_obs_hres_all[[i]]) # compute delta raster
+  p <- pastclim:::delta_downscale (x = tavg_series[[i]],
+                                   delta_rast = delta_rast,
+                                   x_landmask_high = high_res_mask) # delta downscaling 
+  q <- paste0("temp_downscaled_",tavg_vars[i]) # get name of month
+  writeCDF(p, paste0(q,".nc"), overwrite = TRUE) # write netCDF
+  print(i)
+}
+
+dir <- "/Users/lucytimbrell/Documents/GitHub/downscaling_climatemodels/downscaling_climatemodels"
+setwd(dir)
+
+# Check Git status
+gitstatus <- function(dir = getwd()){
+  cmd_list <- list(
+    cmd1 = tolower(substr(dir,1,2)),
+    cmd2 = paste("cd",dir),
+    cmd3 = "git status"
+  )
+  cmd <- paste(unlist(cmd_list),collapse = " & ")
+  system(cmd)
+}
+
+# Git add.
+gitadd <- function(dir = getwd()){
+  cmd_list <- list(
+    cmd1 = tolower(substr(dir,1,2)),
+    cmd2 = paste("cd",dir),
+    cmd3 = "git add --all"
+  )
+  cmd <- paste(unlist(cmd_list),collapse = " & ")
+  system(cmd)
+}
+
+#### Git commit
+gitcommit <- function(msg = "commit from Rstudio", dir = getwd()){
+  cmd = sprintf("git commit -m\"%s\"",msg)
+  system(cmd)
+}
+
+# Git push.
+gitpush <- function(dir = getwd()){
+  cmd_list <- list(
+    cmd1 = tolower(substr(dir,1,2)),
+    cmd2 = paste("cd",dir),
+    cmd3 = "git push"
+  )
+  cmd <- paste(unlist(cmd_list),collapse = " & ")
+  system(cmd)
+}
+
+gitadd()
+gitcommit()
+gitpush()
+
+temp = list.files(pattern="temp_downscaled_*") # find all files with that prefix
+temp_downscaled <- terra::sds(lapply(temp, nc_open)) # open them and merge them into single object
 
 ################# DELTA DOWNSCALING - PRECIPITATION  ################
 prec_vars <- c(paste0("precipitation_0",1:9),paste0("precipitation_",10:12))
@@ -103,18 +163,28 @@ pastclim:::download_worldclim("prec",2.5) #  High res reconstructions
 prec_obs_hres_all <- pastclim:::load_worldclim("prec",2.5)
 prec_obs_hres_all <- terra::crop(prec_obs_hres_all, sea_ext) #  Crop
 
-## Delta downscaling
-prec_downscaled_list<-list() 
+gitadd()
+gitcommit()
+gitpush()
+
+# Delta downscaling
+###prec_downscaled_list<-list() 
 
 for (i in 1:12){
   delta_rast<-pastclim:::delta_compute(x=prec_series[[i]], ref_time = 0,
-                                       obs = prec_obs_hres_all[[i]])
-  prec_downscaled_list[[i]] <- pastclim:::delta_downscale (x = prec_series[[i]],
-                                                            delta_rast = delta_rast,
-                                                           x_landmask_high = high_res_mask)
+                                       obs = prec_obs_hres_all[[i]]) # compute delta raster
+  p <- pastclim:::delta_downscale (x = prec_series[[i]],
+                                   delta_rast = delta_rast,
+                                   x_landmask_high = high_res_mask) # delta downscaling 
+  q <- paste0("prec_downscaled_",prec_vars[i]) # get names of months
+  writeCDF(p, paste0(q,".nc"), overwrite = TRUE) # write netCDF using name of months
 print(i)
   }
-prec_downscaled <- terra::sds(prec_downscaled_list)
+
+temp = list.files(pattern="prec_downscaled_*") # find all files with that prefix
+prec_downscaled <- terra::sds(lapply(temp, nc_open)) # open them and merge them into single object
+
+##prec_downscaled <- terra::sds(prec_downscaled_list)
 
 ################# COMPUTE BIOVARIABLES  ################
 bioclim_downscaled<-bioclim_vars(tavg = tavg_downscaled, prec = prec_downscaled)
@@ -123,8 +193,13 @@ plot(bioclim_downscaled[[1]], main = time(bioclim_downscaled[[1]]))
 
 ################# SAVE DATASETS ################
 
-#setwd() # SET TO HARD DRIVE 
-terra::writeCDF(bioclim_downscaled,paste0(tempdir(),"/EA_bioclim_downscaled.nc"), overwrite=TRUE)
+# Write NCF file 
+terra::writeCDF(bioclim_downscaled,paste0(tempdir(),"/_bioclim_downscaled.nc"), overwrite=TRUE)
+
+gitadd()
+gitcommit()
+gitpush()
+
 
 #terra::writeCDF(bioclim_downscaled[[1]], "bio01_downscaled.nc", varname = "bio01", overwrite = TRUE) # mean annual temp
 #terra::writeCDF(bioclim_downscaled[[2]], "bio04_downscaled.nc", varname = "bio04", overwrite = TRUE) # temp seasonality 
@@ -146,38 +221,38 @@ terra::writeCDF(bioclim_downscaled,paste0(tempdir(),"/EA_bioclim_downscaled.nc")
 
 ################# RESET TIME UNITS ################
 
-nc_name <- "bio01_downscaled.nc"
-nc_in <- ncdf4::nc_open(nc_name, write=TRUE)
-ncdf4::ncatt_put(nc_in,varid="time", 
-                 attname = "units",
-                 attval = "years since 1950-01-01 00:00:00.0")
-ncdf4::ncatt_put(nc_in,varid="time", 
-                 attname = "long_name",
-                 attval = "years BP")
-ncdf4::ncatt_put(nc_in, varid="time", attname="axis", attval = "T")
-ncdf4::nc_close(nc_in)
+#nc_name <- "bio01_downscaled.nc"
+#nc_in <- ncdf4::nc_open(nc_name, write=TRUE)
+#ncdf4::ncatt_put(nc_in,varid="time", 
+#        attname = "units",
+#                 attval = "years since 1950-01-01 00:00:00.0")
+#ncdf4::ncatt_put(nc_in,varid="time", 
+#                 attname = "long_name",
+#                 attval = "years BP")
+#ncdf4::ncatt_put(nc_in, varid="time", attname="axis", attval = "T")
+#ncdf4::nc_close(nc_in)
 
-nc_name <- "bio12_downscaled.nc"
-nc_in <- ncdf4::nc_open(nc_name, write=TRUE)
-ncdf4::ncatt_put(nc_in,varid="time", 
-                 attname = "units",
-                 attval = "years since 1950-01-01 00:00:00.0")
-ncdf4::ncatt_put(nc_in,varid="time", 
-                 attname = "long_name",
-                 attval = "years BP")
-ncdf4::ncatt_put(nc_in, varid="time", attname="axis", attval = "T")
-ncdf4::nc_close(nc_in)
+#nc_name <- "bio12_downscaled.nc"
+#nc_in <- ncdf4::nc_open(nc_name, write=TRUE)
+#ncdf4::ncatt_put(nc_in,varid="time", 
+#                 attname = "units",
+#                 attval = "years since 1950-01-01 00:00:00.0")
+#ncdf4::ncatt_put(nc_in,varid="time", 
+#                 attname = "long_name",
+#                attval = "years BP")
+#ncdf4::ncatt_put(nc_in, varid="time", attname="axis", attval = "T")
+#ncdf4::nc_close(nc_in)
 
-nc_name <- "bio10_downscaled.nc"
-nc_in <- ncdf4::nc_open(nc_name, write=TRUE)
-ncdf4::ncatt_put(nc_in,varid="time", 
-                 attname = "units",
-                 attval = "years since 1950-01-01 00:00:00.0")
-ncdf4::ncatt_put(nc_in,varid="time", 
-                 attname = "long_name",
-                 attval = "years BP")
-ncdf4::ncatt_put(nc_in, varid="time", attname="axis", attval = "T")
-ncdf4::nc_close(nc_in)
+#nc_name <- "bio10_downscaled.nc"
+#nc_in <- ncdf4::nc_open(nc_name, write=TRUE)
+#ncdf4::ncatt_put(nc_in,varid="time", 
+#                 attname = "units",
+#                 attval = "years since 1950-01-01 00:00:00.0")
+#ncdf4::ncatt_put(nc_in,varid="time", 
+#                 attname = "long_name",
+#                attval = "years BP")
+#ncdf4::ncatt_put(nc_in, varid="time", attname="axis", attval = "T")
+#ncdf4::nc_close(nc_in)
 
 ################# EXTRACT TIME SERIES AND PLOT ################
 library(ggplot2)
@@ -206,20 +281,20 @@ raw_data <- location_series(x=coords,time_bp=time_steps, # raw data
 
   
 #  raw_time_series_temp <-location_series(x=coords,time_bp=time_steps, # raw data
-                                   bio_variables=c("bio01"),
-                                   dataset="Beyer2020")
+#                                   bio_variables=c("bio01"),
+#                                   dataset="Beyer2020")
 
 #downscaled_time_series_temp <- location_series(x=coords, time_bp=time_steps, # downscaled data
-                                           bio_variables=c("bio01"),
-                                           dataset="custom", path_to_nc = "bio01_downscaled.nc")
+#                                           bio_variables=c("bio01"),
+#                                          dataset="custom", path_to_nc = "bio01_downscaled.nc")
 
 #raw_time_series_prec <-location_series(x=coords,time_bp=time_steps, # raw data
-                                        bio_variables=c("bio12"),
-                                        dataset="Beyer2020")
+#                                        bio_variables=c("bio12"),
+#                                        dataset="Beyer2020")
 
 #downscaled_time_series_prec <- location_series(x=coords, time_bp=time_steps, # downscaled data
-                                                bio_variables=c("bio12"),
-                                                dataset="custom", path_to_nc = "bio12_downscaled.nc")
+#                                                bio_variables=c("bio12"),
+#                                               dataset="custom", path_to_nc = "bio12_downscaled.nc")
 
 
 a <- ggplot() + 
@@ -312,7 +387,6 @@ nl <- dplyr::bind_rows(numbers_list)
 nl$SiteNames <- unlist(names_list)[!unlist(lapply(numbers_list, is.null))] 
 
 write.csv(unlist(lapply(numbers_list, is.null)), "exclusion_list.csv")
-
 write.csv(nl, "BIAS_RMSE.csv")
 
 nl$Temp_MAT_RMSE <- as.numeric(nl$proxy1_rawT_MAT_RMSE>nl$proxy1_dsT_MAT_RMSE)
@@ -328,7 +402,9 @@ mean(na.omit(nl$Precip_MAT_RMSE))
 mean(na.omit(nl$Precip_WAPLS_RMSE))
 mean(na.omit(nl$Precip_Annual_RMSE))
 
-
+gitadd()
+gitcommit()
+gitpush()
 ####I've not touched this yet####
 
 
