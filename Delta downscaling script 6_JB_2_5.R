@@ -91,18 +91,6 @@ ext(high_res_mask)==ext(tavg_obs_hres_all) # Check same extent
 ##tavg_downscaled <- terra::sds(tavg_downscaled_list)
 
 ##tavg_downscaled # inspect
-
-for (i in 1:12){
-  delta_rast<-pastclim:::delta_compute(x=tavg_series[[i]], ref_time = 0,
-                                       obs = tavg_obs_hres_all[[i]]) # compute delta raster
-  p <- pastclim:::delta_downscale (x = tavg_series[[i]],
-                                   delta_rast = delta_rast,
-                                   x_landmask_high = high_res_mask) # delta downscaling 
-  q <- paste0("downscaled_",tavg_vars[i]) # get name of month
-  writeCDF(p, paste0(q,".nc"), overwrite = TRUE) # write netCDF
-  print(i)
-}
-
 dir <- "/Users/lucytimbrell/Documents/GitHub/downscaling_climatemodels/downscaling_climatemodels"
 setwd(dir)
 
@@ -145,9 +133,21 @@ gitpush <- function(dir = getwd()){
   system(cmd)
 }
 
-gitadd()
-gitcommit()
-gitpush()
+###### DOWNSCALING 
+for (i in 1:12){
+  delta_rast<-pastclim:::delta_compute(x=tavg_series[[i]], ref_time = 0,
+                                       obs = tavg_obs_hres_all[[i]]) # compute delta raster
+  p <- pastclim:::delta_downscale (x = tavg_series[[i]],
+                                   delta_rast = delta_rast,
+                                   x_landmask_high = high_res_mask) # delta downscaling 
+  q <- paste0("downscaled_",tavg_vars[i]) # get name of month
+  writeCDF(p, paste0(q,".nc"), overwrite = TRUE) # write netCDF
+  print(i)
+  gitadd()
+  gitcommit()
+  gitpush()
+}
+
 
 ###### THIS HASN'T BEEN CHECKED
 temp = list.files(pattern="temp_downscaled_*") # find all files with that prefix
@@ -164,9 +164,6 @@ pastclim:::download_worldclim("prec",2.5) #  High res reconstructions
 prec_obs_hres_all <- pastclim:::load_worldclim("prec",2.5)
 prec_obs_hres_all <- terra::crop(prec_obs_hres_all, sea_ext) #  Crop
 
-gitadd()
-gitcommit()
-gitpush()
 
 # Delta downscaling
 ###prec_downscaled_list<-list() 
@@ -180,6 +177,9 @@ for (i in 1:12){
   q <- paste0("prec_downscaled_",prec_vars[i]) # get names of months
   writeCDF(p, paste0(q,".nc"), overwrite = TRUE) # write netCDF using name of months
 print(i)
+gitadd()
+gitcommit()
+gitpush()
   }
 
 temp = list.files(pattern="prec_downscaled_*") # find all files with that prefix
