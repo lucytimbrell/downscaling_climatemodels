@@ -98,7 +98,7 @@ for (i in 1:12){
   p <- pastclim:::delta_downscale (x = tavg_series[[i]],
                                    delta_rast = delta_rast,
                                    x_landmask_high = high_res_mask) # delta downscaling 
-  q <- paste0("temp_downscaled_",tavg_vars[i]) # get name of month
+  q <- paste0("downscaled_",tavg_vars[i]) # get name of month
   writeCDF(p, paste0(q,".nc"), overwrite = TRUE) # write netCDF
   print(i)
 }
@@ -149,6 +149,7 @@ gitadd()
 gitcommit()
 gitpush()
 
+###### THIS HASN'T BEEN CHECKED
 temp = list.files(pattern="temp_downscaled_*") # find all files with that prefix
 temp_downscaled <- terra::sds(lapply(temp, nc_open)) # open them and merge them into single object
 
